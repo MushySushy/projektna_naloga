@@ -3,53 +3,52 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import *
 import time, os, re, requests
-from multiprocessing import Pool
 import zapisovanje
 
 
 seja=requests.Session()
 format_strings=(
-        "<h2>.*?alt=\"(.*?)\".*?",   #drzava
         "<h2>.*?<span>(.*?)</span>.*?",    #ime
+        "<h2>.*?alt=\"(.*?)\".*?",   #drzava
         "(\d*?)<i class=\"fa fa-trophy score-icon.*?",   #pokali
+        "wins-icon \"></i>([0-9 ]*?)</div>.*?",   #zmage
+        "end\d\"></i>(.*?)</a>.*?",   #endurance
+        "([0-9 ]*?)<img src=\"/img/other/xp.svg\".*?",   #exp
         "time-icon  level1\"></i>(\d*?)</a>.*?",   #cas 1
         "time-icon  level2\"></i>(\d*?)</a>.*?",   #cas 2
         "time-icon  level3\"></i>(\d*?)</a>.*?",   #cas 3
         "eff-icon level1\"></i>(\d*?)%.*?",   #eff 1
         "eff-icon level2\"></i>(\d*?)%.*?",   #eff 1
         "eff-icon level3\"></i>(\d*?)%.*?",   #eff 1
-        "([0-9 ]*?)<img src=\"/img/other/xp.svg\".*?",   #exp
-        "mastery1\"></i>(\d*?)</a>.*?",   #eff 1
-        "mastery2\"></i>(\d*?)</a>.*?",   #eff 2
-        "mastery3\"></i>(\d*?)</a>.*?",   #eff 3
+        "mastery1\"></i>(\d*?)</a>.*?",   #mastery 1
+        "mastery2\"></i>(\d*?)</a>.*?",   #mastery 2
+        "mastery3\"></i>(\d*?)</a>.*?",   #mastery 3
         "ws1\"></i>(\d*?)</a>.*?",   #win streak 1
         "ws2\"></i>(\d*?)</a>.*?",   #win streak 2
         "ws3\"></i>(\d*?)</a>.*?",   #win streak 3
-        "end\d\"></i>(.*?)</a>.*?",   #endurance
-        "wins-icon \"></i>([0-9 ]*?)</div>.*?",   #zmage
         )
 
 def html2podatki(s):
-    return tuple((lambda x:x.groups()[0] if x else None)(re.search(f,s,flags=re.DOTALL)) for f in format_strings)
+    t=[(lambda x:x.groups()[0] if x else None)(re.search(f,s,flags=re.DOTALL)) for f in format_strings]
+    t[3]=t[3].replace(" ","")
+    t[5]=t[5].replace(" ","")
+    t[4]=(lambda x:int(x[0])*60+int(x[1]))(re.match("(\d+)h (\d+)m",t[4]).groups())
+    for i in range(2,len(t)):
+        t[i]=int(t[i])
+
+    return tuple(t)
+
         
 
 def naberi_podatke_igralca(k):
-    global seja, format_string
-
-    print("\nenter ",k)
-    
     for i in range(3):
-        print("try ",i," on ",k)
         try:
             s=seja.get("https://minesweeper.online/player/"+str(k),timeout=1)
-            print("got site on ",k)
             #print(s.text,s)
             if "Trophies" not in s.text:# or "    " in s.text:
-                print("slb site")
                 raise Exception()
-            return html2podatki(s.text)
+            return (int(k),)+html2podatki(s.text)
         except Exception:
-            print("error on ",k)
             pass
 
 
@@ -97,23 +96,13 @@ def main():
     #naberi_kljuce(1000)
     #print(naberi_podatke_igralca(2620977))
     #return
-    k=tuple(open("kljuci.txt").read().split("\n"))[:100]
+    k=tuple(open("kljuci.txt").read().split("\n"))[:200]
 
-    if 0:
-        n=0
-        for i in k:
-            x=naberi_podatke_igralca(i)
-            n+=x==None
-            print(n,x)
+    for i in k:
+        print(naberi_podatke_igralca(i))
 
-    else:
-        with Pool(processes=4) as pool:
-            p=pool.map(naberi_podatke_igralca,k)
-        print(p)
-        print(len(p),p.count(None))
 
 if __name__=="__main__":
-    print("uwu")
     start=time.time()
     main()
     print("Trajalo %.1f sekund"%(time.time()-start))
