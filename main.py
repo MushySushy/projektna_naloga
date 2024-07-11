@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import *
-import time, os, re, requests
+import time, os, re, requests, csv
 
 
 
@@ -57,43 +57,43 @@ def naberi_podatke_igralca(k):
             pass
 
 
-def naberi_kljuce(n,file):
+def naberi_kljuce(n,filename):
     driver=webdriver.Chrome()
     driver.implicitly_wait(5)
     driver.get("https://minesweeper.online/best-players")
     time.sleep(1)
 
-    if os.path.exists(file):
-        os.remove(file)
-    f=open(file,"a",encoding="UTF-8")
-    f.write("kljuc,ime,drzava,pokali,zmage,endurance,exp,cas1,cas2,cas3,eff1,eff2,eff3,mastery1,mastery2,mastery3,ws1,ws2,ws3\n")
+    with open(filename,"w",encoding="UTF-8",newline="") as file:
+        file.write("id,ime,drzava,pokali,zmage,endurance,exp,cas1,cas2,cas3,eff1,eff2,eff3,mastery1,mastery2,mastery3,ws1,ws2,ws3\n")
+        f=csv.writer(file)
 
-    start_time=time.time()
+        start_time=time.time()
 
-    for i in range(1,n//10+1):
-        while 1:
-            try:
-                s=driver.find_element(By.ID,"stat_table_body").get_attribute("innerHTML")
-                driver.find_element(By.LINK_TEXT,">").click()
-                for j in re.findall(r"href=\"/player/(\d+)\"",s):
-                    try:
-                        p=",".join(str(k) for k in naberi_podatke_igralca(j))+"\n"
-                        f.write(p)
-                        print(p,end="")
-                    except Exception:
-                        print("Zgubil igralca ",j)
-            except StaleElementReferenceException:
-                print("Error pri ",i)
-                continue
-            break
+        for i in range(1,n//10+1):
+            while 1:
+                try:
+                    s=driver.find_element(By.ID,"stat_table_body").get_attribute("innerHTML")
+                    driver.find_element(By.LINK_TEXT,">").click()
 
-        print("\nNabral %d/%d igralcev (%.2f%%) v %.1f sekundah\n"%(i*10,n,i/n*1000,time.time()-start_time))
+                    for j in re.findall(r"href=\"/player/(\d+)\"",s):
+                        try:
+                            p=naberi_podatke_igralca(j)
+                            f.writerow(p)
+                            print(p)
+                        except Exception:
+                            print("Zgubil igralca ",j)
+                
+                except StaleElementReferenceException:
+                    print("Error pri ",i)
+                    continue
 
-    f.close()
+                break
+
+            print("\nNabral %d/%d igralcev (%.2f%%) v %.1f sekundah\n"%(i*10,n,i/n*1000,time.time()-start_time))
 
 
 def main():
-    naberi_kljuce(100000,"podatki.csv")
+    naberi_kljuce(110000,"podatki2.csv")
 
 
 if __name__=="__main__":
